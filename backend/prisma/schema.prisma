@@ -1,3 +1,5 @@
+// /prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,6 +15,13 @@ model Category {
   slug      String    @unique
   products  Product[]
   createdAt DateTime  @default(now())
+
+  // Self-relation for parent/child subcategories
+  parent        Category?  @relation("Subcategories", fields: [parentId], references: [id], onDelete: SetNull)
+  parentId      Int?
+  subcategories Category[] @relation("Subcategories")
+
+  @@index([parentId])
 }
 
 model Product {
@@ -21,23 +30,58 @@ model Product {
   slug        String    @unique
   description String?
   price       Decimal   @db.Decimal(10, 2)
+  // DEPRECATED: imageUrl will be replaced by the primary ProductImage
   imageUrl    String?
   isActive    Boolean   @default(true)
   stock       Int       @default(0)
+  isFeatured  Boolean   @default(false)
   
-  // NEW: To show in "Best Sellers" or "Hero" widgets
-  isFeatured  Boolean   @default(false) 
+  // NEW: Rich product details
+  specs       Json?
+  audioUrl    String?
 
+  // Relations
   category    Category? @relation(fields: [categoryId], references: [id])
   categoryId  Int?
+
+  images      ProductImage[]
+  collections Collection[]
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
 
-// Keep the rest of the file same...
+// NEW: Model for product collections (e.g., "New Arrivals", "Beginner's Choice")
+model Collection {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  imageUrl    String?
+  products    Product[] // Defines the many-to-many relation
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// NEW: Model for a gallery of product images
+model ProductImage {
+  id        Int     @id @default(autoincrement())
+  url       String
+  altText   String?
+  isPrimary Boolean @default(false)
+
+  // Relation back to the product
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId Int
+
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+}
+
 model Admin {
   id       Int    @id @default(autoincrement())
   username String @unique
-  password String // Will store hashed password, not plain text
+  password String
 }
-
